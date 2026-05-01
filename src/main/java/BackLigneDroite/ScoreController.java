@@ -10,7 +10,7 @@ public class ScoreController {
 
     private final ModeleController modeleController = new ModeleController();
     private final PathRotationOptimizer lineOptimizer = new PathRotationOptimizer();
-
+    private final EllipseFitter ellipseFitter = new EllipseFitter();
 
     private static final int NB_POINTS_MODELE = 100;
     private static final double SEUIL_FRECHET_LIGNE = 50.0;
@@ -20,8 +20,11 @@ public class ScoreController {
     public ReponseScore calculerLeScore(@RequestBody RequeteDessin requete) {
         String type = requete.getTypeModele();
 
-
-        return calculerScoreLigne(requete);
+        if ("ellipse".equalsIgnoreCase(type)) {
+            return calculerScoreEllipse(requete);
+        } else {
+            return calculerScoreLigne(requete);
+        }
     }
 
     /**
@@ -44,5 +47,52 @@ public class ScoreController {
         return reponse;
     }
 
+    /**
+     * Nouvelle logique pour l'ellipse intégrée
+     */
+    private ReponseScore calculerScoreEllipse(RequeteDessin requete) {
+        List<Point> pointsJoueur = requete.getPoints();
 
+
+
+        // 1. Fitting de l'ellipse
+        EllipseFitter.FitResult fit = ellipseFitter.fit(pointsJoueur, NB_POINTS_MODELE);
+
+        if (!fit.isValid()) {
+            ReponseScore erreur = new ReponseScore();
+            erreur.setScore(0);
+            erreur.setCommLinearite("Impossible d'identifier une ellipse.");
+            return erreur;
+        }
+
+        // 2. Calcul du score
+        double dist = fit.getFrechetDistance();
+        double score = Math.max(0, 100 - (dist / SEUIL_FRECHET_ELLIPSE) * 100);
+
+        // 3. Construction de la réponse enrichie
+        ReponseScore reponse = new ReponseScore();
+        reponse.setScore(Math.round(score * 10.0) / 10.0);
+
+        // Données géométriques pour le front
+        reponse.setEllipseCx(fit.getCenterX());
+        reponse.setEllipseCy(fit.getCenterY());
+        reponse.setEllipseSemiA(fit.getSemiAxisA());
+        reponse.setEllipseSemiB(fit.getSemiAxisB());
+        reponse.setEllipseAngle(fit.getAngleDeg());
+
+        // Génération des points du modèle pour le tracé front
+        reponse.setEllipseModelPoints(EllipseModelGenerator.generate(
+                fit.getCenterX(), fit.getCenterY(),
+                fit.getSemiAxisA(), fit.getSemiAxisB(),
+                fit.getAngleDeg(),
+                NB_POINTS_MODELE
+        ));
+
+        // Commentaires
+        if (requete.getOptions().getLinearite()) {
+            reponse.setCommLinearite("Précision de la forme : " + Math.round(dist * 10.0) / 10.0);
+        }
+
+        return reponse;
+    }
 }
