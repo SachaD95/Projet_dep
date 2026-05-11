@@ -21,7 +21,7 @@ public class ModeleController {
     }
 
     // Ligne droite entre deux points
-    private List<Point> genererLigneDroite(double x1, double y1, double x2, double y2, int n) {
+    public List<Point> genererLigneDroite(double x1, double y1, double x2, double y2, int n) {
         List<Point> points = new ArrayList<>();
         for (int i = 0; i < n; i++) {
             double t = (double) i / (n - 1);

@@ -32,7 +32,7 @@ public class EllipseFitter {
 
     public FitResult fit(List<Point> userPoints, int nbModelPts) {
         // 1. Simplification : on élimine les points trop proches (bruit)
-        List<Point> pts = simplifierTrace(userPoints, 5.0);
+        List<Point> pts = Simplification.simplifierTrace(userPoints, 5.0);
         if (pts.size() < 6) return FitResult.invalid();
 
         int n = pts.size();
@@ -177,17 +177,6 @@ public class EllipseFitter {
         return vals;
     }
 
-    private List<Point> simplifierTrace(List<Point> points, double distMin) {
-        if (points.size() < 2) return points;
-        List<Point> res = new ArrayList<>();
-        res.add(points.get(0));
-        Point last = points.get(0);
-        for (int i = 1; i < points.size(); i++) {
-            double d = Math.sqrt(Math.pow(points.get(i).getX()-last.getX(),2)+Math.pow(points.get(i).getY()-last.getY(),2));
-            if (d >= distMin) { res.add(points.get(i)); last = points.get(i); }
-        }
-        return res;
-    }
 
     private double[][] transpose(double[][] A) {
         double[][] T = new double[A[0].length][A.length];

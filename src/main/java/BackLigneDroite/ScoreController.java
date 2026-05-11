@@ -1,6 +1,8 @@
 package BackLigneDroite;
 
 import org.springframework.web.bind.annotation.*;
+
+import java.util.ArrayList;
 import java.util.List;
 
 @RestController
@@ -27,12 +29,33 @@ public class ScoreController {
         }
     }
 
+
     /**
      * Logique originale pour la ligne droite
      */
     private ReponseScore calculerScoreLigne(RequeteDessin requete) {
         List<Point> pointsJoueur = requete.getPoints();
-        List<Point> pointsModele = modeleController.getModele(requete.getTypeModele()).getPoints();
+        List<Point> Original=pointsJoueur;
+        if (pointsJoueur.size() > 1000) {
+            List<Point> pointsReduits = new ArrayList<>();
+            double step = (double) pointsJoueur.size() / 50;
+
+            for (int i = 0; i < 50; i++) {
+                int index = (int) (i * step);
+                pointsReduits.add(pointsJoueur.get(index));
+            }
+
+            pointsJoueur = pointsReduits;
+        }
+
+
+
+
+        pointsJoueur=Simplification.simplifierTrace(pointsJoueur, 5.0);
+
+
+
+        List<Point> pointsModele = modeleController.genererLigneDroite(50, 200, 450, 200, pointsJoueur.size());;
 
         PathRotationOptimizer.RotationResult res = lineOptimizer.findOptimalRotation(pointsJoueur, pointsModele);
 
@@ -41,9 +64,26 @@ public class ScoreController {
         ReponseScore reponse = new ReponseScore();
         reponse.setScore(Math.round(score * 10.0) / 10.0);
 
+
+
         if (requete.getOptions().getAngle()) {
             reponse.setCommAngle("Angle : " + Math.round(res.getNormalizedAngle() * 10.0) / 10.0 + "°");
         }
+
+        if (requete.getOptions().getVitesse()){
+            String Comv=Vitesse.analyserProfilVitesse(pointsJoueur,8);
+            reponse.setCommVitesse("Vitesse:"+Comv);
+        }
+
+        if (requete.getOptions().getTremblement()){
+            TremblementScorer scorer = new TremblementScorer();
+            String ComTremblement=scorer.calculerScoreTremblement(pointsJoueur, 7);
+
+
+            reponse.setCommTremblement("Tremblement:"+ComTremblement);
+        }
+
+
         return reponse;
     }
 
@@ -61,7 +101,7 @@ public class ScoreController {
         if (!fit.isValid()) {
             ReponseScore erreur = new ReponseScore();
             erreur.setScore(0);
-            erreur.setCommLinearite("Impossible d'identifier une ellipse.");
+            erreur.setCommTremblement("Impossible d'identifier une ellipse.");
             return erreur;
         }
 
@@ -89,8 +129,8 @@ public class ScoreController {
         ));
 
         // Commentaires
-        if (requete.getOptions().getLinearite()) {
-            reponse.setCommLinearite("Précision de la forme : " + Math.round(dist * 10.0) / 10.0);
+        if (requete.getOptions().getTremblement()) {
+            reponse.setCommTremblement("Précision de la forme : " + Math.round(dist * 10.0) / 10.0);
         }
 
         return reponse;

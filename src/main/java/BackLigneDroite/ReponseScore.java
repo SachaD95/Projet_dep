@@ -7,7 +7,7 @@ public class ReponseScore {
     private double score;
     private String commAngle;
     private String commTremblement;
-    private String commLinearite;
+    private String commVitesse;
 
     // --- Nouveaux champs pour l'ellipse ---
     private Double ellipseCx;
@@ -19,15 +19,15 @@ public class ReponseScore {
 
     public ReponseScore() {}
 
-    // --- GETTERS & SETTERS existants ---
+    // --- GETTERS & SETTERS
     public double getScore() { return score; }
     public void setScore(double score) { this.score = score; }
     public String getCommAngle() { return commAngle; }
     public void setCommAngle(String commAngle) { this.commAngle = commAngle; }
     public String getCommTremblement() { return commTremblement; }
     public void setCommTremblement(String commTremblement) { this.commTremblement = commTremblement; }
-    public String getCommLinearite() { return commLinearite; }
-    public void setCommLinearite(String commLinearite) { this.commLinearite = commLinearite; }
+    public String getCommVitesse() { return commVitesse; }
+    public void setCommVitesse(String commVitesse) { this.commVitesse = commVitesse; }
 
     // --- Nouveaux GETTERS & SETTERS ---
     public Double getEllipseCx() { return ellipseCx; }
