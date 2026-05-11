@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="fr">
+
+<head>
+  <meta charset="UTF-8">
+  <title>Entrainement au dessin</title>
+  <link rel="stylesheet" href="style.css">
+  <script src="scripttestMorePoints" defer></script>
+</head>
+
+<body>
+  <h1>Ma zone de dessin</h1>
+
+  <div class="options-container">
+    <h3>Choisir un modèle</h3>
+
+    <div class="modele-choix">
+
+      <label class="modele-option">
+        <input type="radio" name="modele" value="ligne_horizontale" checked>
+        <span>Ligne droite</span>
+        <canvas id="preview-ligne_horizontale" class="preview-canvas" width="120" height="80"></canvas>
+      </label>
+
+      <label class="modele-option">
+        <input type="radio" name="modele" value="ellipse" id="radioEllipse">
+        <label for="radioEllipse">Ellipse</label>
+        <canvas id="preview-ellipse" width="120" height="80"></canvas>
+        
+      </label>
+
+    </div>
+
+    <button id="btnChargerModele">Charger le modèle</button>
+  </div>
+
+  <canvas id="monCanvas" width="500" height="400"></canvas>
+  <br>
+  <input type="file" id="inputFichier" style="display:none;" accept=".txt,.stroke">
+  <button id="btnImporter">Importer un tracé (.txt)</button>
+
+  <div class="options-container">
+    <h3>Scoring</h3>
+    <label><input type="checkbox" id="chkAngle"> L'angle de la droite</label><br>
+    <label><input type="checkbox" id="chkTremblement"> Les tremblements</label><br>
+    <label><input type="checkbox" id="chkVitesse"> La Vitesse</label>
+  </div>
+
+  <div id="resultats" class="resultats-box" style="display: none;"></div>
+
+  <br>
+  <button id="btnEnvoyer">Calculer le score</button>
+</body>
+
+</html>

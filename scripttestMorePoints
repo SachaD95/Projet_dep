@@ -1,0 +1,347 @@
+// script.js
+
+let mesPoints = [];
+let pointsModele = [];
+let typeModeleActuel = 'ligne_horizontale';
+
+const canvas = document.getElementById('monCanvas');
+const ctx = canvas.getContext('2d');
+let isDrawing = false;
+
+const divResultats = document.getElementById('resultats');
+const btnEnvoyer = document.getElementById('btnEnvoyer');
+const btnChargerModele = document.getElementById('btnChargerModele');
+
+// -------------------------------------------------------
+// Miniatures : dessin de la preview dans chaque petit canvas
+// -------------------------------------------------------
+
+function scalerPoints(points, largeur, hauteur) {
+    if (points.length === 0) return [];
+    const scaleX = largeur / 500;
+    const scaleY = hauteur / 400;
+    return points.map(p => ({ x: p.x * scaleX, y: p.y * scaleY }));
+}
+
+function dessinerPreview(type, points) {
+    const previewCanvas = document.getElementById('preview-' + type);
+    if (!previewCanvas) return;
+
+    const pCtx = previewCanvas.getContext('2d');
+    pCtx.clearRect(0, 0, previewCanvas.width, previewCanvas.height);
+
+    const pointsScales = scalerPoints(points, previewCanvas.width, previewCanvas.height);
+    if (pointsScales.length === 0) return;
+
+    pCtx.beginPath();
+    pCtx.moveTo(pointsScales[0].x, pointsScales[0].y);
+    for (let i = 1; i < pointsScales.length; i++) {
+        pCtx.lineTo(pointsScales[i].x, pointsScales[i].y);
+    }
+    pCtx.strokeStyle = '#555';
+    pCtx.lineWidth = 2;
+    pCtx.setLineDash([4, 3]);
+    pCtx.stroke();
+    pCtx.setLineDash([]);
+}
+
+// Ajout de 'ellipse' dans la liste des modèles à prévisualiser
+const tousLesModeles = ['ligne_horizontale', 'ellipse'];
+
+tousLesModeles.forEach(type => {
+    fetch(`http://localhost:8080/api/modele/${type}`)
+        .then(r => r.json())
+        .then(modele => {
+            dessinerPreview(type, modele.points);
+        })
+        .catch(() => console.warn(`Preview impossible pour : ${type}`));
+});
+
+// -------------------------------------------------------
+// Chargement du modèle principal sur le grand canvas
+// -------------------------------------------------------
+function chargerModele() {
+    const radioChecked = document.querySelector('input[name="modele"]:checked');
+    typeModeleActuel = radioChecked ? radioChecked.value : 'ligne_horizontale';
+
+    // RAZ
+    mesPoints = [];
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    divResultats.style.display = 'none';
+
+    // Pour l'ellipse, on n'affiche pas de pointillés gris au départ
+    // car l'ellipse "modèle" dépend du futur tracé de l'utilisateur.
+    if (typeModeleActuel === 'ellipse') {
+        pointsModele = [];
+        return;
+    }
+
+    fetch(`http://localhost:8080/api/modele/${typeModeleActuel}`)
+        .then(r => r.json())
+        .then(modele => {
+            pointsModele = modele.points;
+            dessinerModele(pointsModele);
+        })
+        .catch(() => console.warn("Impossible de charger le modèle depuis le serveur."));
+}
+
+function dessinerModele(points) {
+    if (!points || points.length === 0) return;
+    ctx.beginPath();
+    ctx.moveTo(points[0].x, points[0].y);
+    for (let i = 1; i < points.length; i++) {
+        ctx.lineTo(points[i].x, points[i].y);
+    }
+    ctx.strokeStyle = '#aaaaaa';
+    ctx.lineWidth = 2;
+    ctx.setLineDash([8, 5]);
+    ctx.stroke();
+    ctx.setLineDash([]);
+}
+
+/**
+ * Dessine l'ellipse idéale renvoyée par le serveur après analyse
+ */
+function dessinerEllipseIdeale(points) {
+    if (!points || points.length === 0) return;
+    ctx.beginPath();
+    ctx.strokeStyle = '#2ecc71'; // Vert
+    ctx.lineWidth = 3;
+    ctx.setLineDash([5, 5]);
+    ctx.moveTo(points[0].x, points[0].y);
+    for (let i = 1; i < points.length; i++) {
+        ctx.lineTo(points[i].x, points[i].y);
+    }
+    ctx.stroke();
+    ctx.setLineDash([]);
+}
+
+// Chargement au démarrage
+chargerModele();
+
+btnChargerModele.addEventListener('click', chargerModele);
+
+document.querySelectorAll('input[name="modele"]').forEach(radio => {
+    radio.addEventListener('change', chargerModele);
+});
+
+// -------------------------------------------------------
+// Dessin utilisateur
+// -------------------------------------------------------
+// -------------------------------------------------------
+// Dessin utilisateur (Haute Résolution avec Coalesced Events)
+// -------------------------------------------------------
+
+canvas.addEventListener('pointerdown', (event) => {
+    // On capture le pointeur pour continuer à recevoir les points même si on sort du cadre
+    canvas.setPointerCapture(event.pointerId);
+    
+    isDrawing = true;
+    mesPoints = [];
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    
+    if (typeModeleActuel !== 'ellipse') {
+        dessinerModele(pointsModele);
+    }
+    
+    ctx.beginPath();
+    ctx.strokeStyle = 'red';
+    ctx.lineWidth = 3;
+    ctx.setLineDash([]);
+
+    // Position initiale
+    const rect = canvas.getBoundingClientRect();
+    ctx.moveTo(event.clientX - rect.left, event.clientY - rect.top);
+});
+
+canvas.addEventListener('pointermove', (event) => {
+    if (!isDrawing) return;
+
+    // --- LE CHANGEMENT EST ICI ---
+    // On récupère TOUS les points capturés par le capteur entre deux rafraîchissements d'écran
+    const events = event.getCoalescedEvents ? event.getCoalescedEvents() : [event];
+    const rect = canvas.getBoundingClientRect();
+
+    events.forEach(ev => {
+        const x = ev.clientX - rect.left;
+        const y = ev.clientY - rect.top;
+
+        ctx.lineTo(x, y);
+        ctx.stroke();
+        mesPoints.push({ x: x, y: y });
+    });
+});
+
+canvas.addEventListener('pointerup', (event) => {
+    isDrawing = false;
+    canvas.releasePointerCapture(event.pointerId);
+});
+
+
+// -------------------------------------------------------
+// Envoi au serveur
+// -------------------------------------------------------
+btnEnvoyer.addEventListener('click', () => {
+    if (mesPoints.length < 5) {
+        divResultats.style.display = 'block';
+        divResultats.innerHTML = "<p style='color: red;'>Tracé trop court pour être analysé !</p>";
+        return;
+    }
+
+    const optionsChoisies = {
+        angle:       document.getElementById('chkAngle').checked,
+        tremblement: document.getElementById('chkTremblement').checked,
+        vitesse:   document.getElementById('chkVitesse').checked
+    };
+
+    const colis = {
+        points:     mesPoints,
+        options:    optionsChoisies,
+        typeModele: typeModeleActuel
+    };
+
+    fetch('http://localhost:8080/api/calculer-score', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(colis)
+    })
+    .then(r => r.json())
+    .then(donnees => {
+        divResultats.style.display = 'block';
+        
+        // Si le serveur a renvoyé une ellipse modèle, on l'affiche en vert
+        if (donnees.ellipseModelPoints) {
+            dessinerEllipseIdeale(donnees.ellipseModelPoints);
+        }
+
+        let affichage = `<h3>Analyse du tracé (${typeModeleActuel}) :</h3>`;
+        if (donnees.score !== undefined)
+            affichage += `<p><strong>Linéarité Global :</strong> ${donnees.score} / 100</p>`;
+        
+        if (donnees.commAngle)
+            affichage += `<p>📐 <strong>Angle / Forme :</strong> ${donnees.commAngle}</p>`;
+        
+        let affichageVitesse = null;
+
+        // --- DANS LA FONCTION btnEnvoyer.addEventListener('click', ...) ---
+
+        if (donnees.commVitesse) {
+            // 1. On définit la configuration des badges
+            const configVitesse = {
+                '+': { color: '#ef4444', label: 'Rapide', icon: '' },
+                '-': { color: '#3b82f6', label: 'Lent', icon: '' },
+                '~': { color: '#10b981', label: 'Stable', icon: '' }
+            };
+
+            // 2. On transforme la chaîne "+ - ~" en HTML
+            const badges = donnees.commVitesse.split(' ').map(s => {
+                const config = configVitesse[s] || { color: '#9ca3af', label: '?', icon: '' };
+                return `
+                    <span title="${config.label}" style="
+                        background-color: ${config.color};
+                        color: white;
+                        padding: 4px 8px;
+                        border-radius: 6px;
+                        font-size: 0.85rem;
+                        font-weight: bold;
+                        margin-right: 6px;
+                        display: inline-flex;
+                        align-items: center;
+                        gap: 4px;
+                        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+                    ">
+                        ${config.icon} ${s}
+                    </span>`;
+            }).join('');
+
+            affichage += `<div style="margin-top: 10px; display: flex; align-items: center; flex-wrap: wrap;">
+                            <strong>📏 Profil Vitesse :</strong> &nbsp; ${badges}
+                        </div>`;
+        }
+
+        if (donnees.commTremblement)
+            affichage += `<p>〰️ <strong>Tremblements :</strong> ${donnees.commTremblement}</p>`;
+
+        divResultats.innerHTML = affichage;
+    })
+    .catch(err => {
+        console.error(err);
+        divResultats.style.display = 'block';
+        divResultats.innerHTML = "<p style='color: red;'>Erreur : Le serveur ne répond pas.</p>";
+    });
+});
+// -------------------------------------------------------
+// Importation et Parsing de fichier de points
+// -------------------------------------------------------
+
+const inputFichier = document.getElementById('inputFichier');
+const btnImporter = document.getElementById('btnImporter');
+
+// Déclenche l'ouverture de la fenêtre de sélection de fichier
+btnImporter.addEventListener('click', () => inputFichier.click());
+
+inputFichier.addEventListener('change', function(e) {
+    const fichier = e.target.files[0];
+    if (!fichier) return;
+
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        const contenu = e.target.result;
+        analyserEtChargerPoints(contenu);
+    };
+    reader.readAsText(fichier);
+});
+
+function analyserEtChargerPoints(texte) {
+    const lignes = texte.split('\n');
+    let nouveauxPoints = [];
+    const scale = 2/3
+
+    lignes.forEach(ligne => {
+        ligne = ligne.trim();
+        // On ignore les lignes d'entête (STROKE, NOTE, POINTS, etc.) 
+        // et on ne garde que celles qui commencent par un chiffre (coordonnées)
+        if (ligne && /^[0-9]/.test(ligne)) {
+            const segments = ligne.split(',');
+            if (segments.length >= 2) {
+                nouveauxPoints.push({
+                    x: parseFloat(segments[0])*scale,
+                    y: parseFloat(segments[1])*scale
+                });
+            }
+        }
+    });
+
+    if (nouveauxPoints.length > 0) {
+        mesPoints = nouveauxPoints;
+        visualiserPointsImportes();
+        console.log(`${mesPoints.length} points importés avec succès.`);
+    } else {
+        alert("Format de fichier non reconnu ou aucun point trouvé.");
+    }
+}
+
+function visualiserPointsImportes() {
+    // 1. Nettoyer le canvas
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    
+    // 2. Redessiner le modèle de référence si besoin
+    if (typeModeleActuel !== 'ellipse') {
+        dessinerModele(pointsModele);
+    }
+
+    // 3. Dessiner le tracé importé en bleu pour le différencier du tracé souris (rouge)
+    if (mesPoints.length > 0) {
+        ctx.beginPath();
+        ctx.strokeStyle = '#3498db'; // Bleu
+        ctx.lineWidth = 3;
+        ctx.moveTo(mesPoints[0].x, mesPoints[0].y);
+        for (let i = 1; i < mesPoints.length; i++) {
+            ctx.lineTo(mesPoints[i].x, mesPoints[i].y);
+        }
+        ctx.stroke();
+        
+        // Optionnel : Déclencher l'analyse immédiatement après l'import
+        // btnEnvoyer.click(); 
+    }
+}
