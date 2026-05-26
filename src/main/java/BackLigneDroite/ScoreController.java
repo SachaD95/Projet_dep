@@ -31,11 +31,12 @@ public class ScoreController {
 
 
     /**
-     * Logique originale pour la ligne droite
+     * Logique originale pour la ligne droite mise à jour avec le modèle dynamique
      */
     private ReponseScore calculerScoreLigne(RequeteDessin requete) {
         List<Point> pointsJoueur = requete.getPoints();
         List<Point> Original=pointsJoueur;
+
         if (pointsJoueur.size() > 1000) {
             List<Point> pointsReduits = new ArrayList<>();
             double step = (double) pointsJoueur.size() / 50;
@@ -48,14 +49,17 @@ public class ScoreController {
             pointsJoueur = pointsReduits;
         }
 
-
-
-
         pointsJoueur=Simplification.simplifierTrace(pointsJoueur, 5.0);
 
-
-
-        List<Point> pointsModele = modeleController.genererLigneDroite(50, 200, 450, 200, pointsJoueur.size());;
+        // Appel du modèle dynamique avec les attributs de la requête (taille, angle, dimensions)
+        ModeleDessin modeleIdeal = modeleController.getModele(
+                requete.getTypeModele(),
+                requete.getTaille(),
+                requete.getAngle(),
+                requete.getLargeurMax(),
+                requete.getHauteurMax()
+        );
+        List<Point> pointsModele = modeleIdeal.getPoints();
 
         PathRotationOptimizer.RotationResult res = lineOptimizer.findOptimalRotation(pointsJoueur, pointsModele);
 
@@ -63,8 +67,6 @@ public class ScoreController {
 
         ReponseScore reponse = new ReponseScore();
         reponse.setScore(Math.round(score * 10.0) / 10.0);
-
-
 
         if (requete.getOptions().getAngle()) {
             reponse.setCommAngle("Angle : " + Math.round(res.getNormalizedAngle() * 10.0) / 10.0 + "°");
@@ -78,11 +80,8 @@ public class ScoreController {
         if (requete.getOptions().getTremblement()){
             TremblementScorer scorer = new TremblementScorer();
             String ComTremblement=scorer.calculerScoreTremblement(pointsJoueur, 7);
-
-
             reponse.setCommTremblement("Tremblement:"+ComTremblement);
         }
-
 
         return reponse;
     }
@@ -92,8 +91,6 @@ public class ScoreController {
      */
     private ReponseScore calculerScoreEllipse(RequeteDessin requete) {
         List<Point> pointsJoueur = requete.getPoints();
-
-
 
         // 1. Fitting de l'ellipse
         EllipseFitter.FitResult fit = ellipseFitter.fit(pointsJoueur, NB_POINTS_MODELE);
