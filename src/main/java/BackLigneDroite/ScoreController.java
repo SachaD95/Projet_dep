@@ -69,18 +69,32 @@ public class ScoreController {
         reponse.setScore(Math.round(score * 10.0) / 10.0);
 
         if (requete.getOptions().getAngle()) {
-            reponse.setCommAngle("Angle : " + Math.round(res.getNormalizedAngle() * 10.0) / 10.0 + "°");
+            double angleNorm = ((res.getNormalizedAngle() % 180) + 180) % 180;
+            double angle0et90 = 90 - Math.abs(90 - angleNorm);
+
+            reponse.setCommAngle((Math.round(angle0et90 * 10.0) / 10.0) + "°");
         }
 
         if (requete.getOptions().getVitesse()){
-            String Comv=Vitesse.analyserProfilVitesse(pointsJoueur,8);
-            reponse.setCommVitesse("Vitesse:"+Comv);
+            String Comv=Vitesse.analyserProfilVitesse(Original,8);
+            reponse.setCommVitesse(Comv);
         }
 
-        if (requete.getOptions().getTremblement()){
+        if (requete.getOptions().getTremblement()) {
             TremblementScorer scorer = new TremblementScorer();
-            String ComTremblement=scorer.calculerScoreTremblement(pointsJoueur, 7);
-            reponse.setCommTremblement("Tremblement:"+ComTremblement);
+            String comTremblement = scorer.calculerScoreTremblement(pointsJoueur);
+            double ecart = Double.parseDouble(comTremblement.replace(",", "."));
+            double scoreTremblementSur100 =  (int) Math.max(0, Math.min(100, Math.round(100 * Math.exp(-ecart / 4.0))));
+
+
+
+            reponse.setCommTremblement(scoreTremblementSur100 + " / 100 | Écart moyen : " + comTremblement + " px");
+        }
+
+        if (requete.getOptions().getTaille()) {
+            // On passe la liste de points et la taille cible configurée par le slider
+            String commTaille = Taille.analyserTaille(requete.getPoints(), requete.getTaille());
+            reponse.setCommTaille(commTaille);
         }
 
         return reponse;

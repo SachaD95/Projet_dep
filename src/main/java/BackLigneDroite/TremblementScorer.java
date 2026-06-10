@@ -5,59 +5,88 @@ import java.text.DecimalFormat;
 
 public class TremblementScorer {
 
-
     private static final DecimalFormat df = new DecimalFormat("0.00");
 
-    public String calculerScoreTremblement(List<Point> points, double rayonPixels) {
-        if (points == null || points.size() < 3) return "0.00";
+    // windowSize = nombre de voisins de chaque côté (ex: 5 → fenêtre de 11 points)
+    // Plus windowSize est petit, plus on capture les micro-tremblements
+    // Trop petit (< 3) → instable. Trop grand → on reintègre la courbure
+    private static final int WINDOW_SIZE = 8;
 
-        double sommeEcarts = 0;
+    public String calculerScoreTremblement(List<Point> points) {
+        if (points == null || points.size() < WINDOW_SIZE * 2 + 1) return "0.00";
+
+        int n = points.size();
+        double sommeCarres = 0;
         int count = 0;
 
-        for (int i = 0; i < points.size(); i++) {
-            Point reel = points.get(i);
+        for (int i = WINDOW_SIZE; i < n - WINDOW_SIZE; i++) {
+            // Fenêtre locale autour du point i
+            List<Point> fenetre = points.subList(i - WINDOW_SIZE, i + WINDOW_SIZE + 1);
 
-            // On calcule la moyenne des points dans un rayon de X pixels autour du point i
-            Point ideal = calculerMoyenneSpatiale(points, i, rayonPixels);
+            // Droite idéale locale par régression sur la fenêtre
+            double[] droite = regressionLocale(fenetre);
+            if (droite == null) continue;
 
-            if (ideal != null) {
-                double distance = Math.sqrt(Math.pow(reel.getX() - ideal.getX(), 2) + Math.pow(reel.getY() - ideal.getY(), 2));
-                sommeEcarts += distance;
-                count++;
-            }
+            // Distance perpendiculaire du point central à cette droite locale
+            Point centre = points.get(i);
+            double residu = distancePerpendiculaire(centre, droite);
+
+            sommeCarres += residu * residu;
+            count++;
         }
 
-        // Score final : écart moyen en pixels, indépendant de la densité de points
-        double scoreFinal = (count == 0) ? 0 : (sommeEcarts / count);
-        return df.format(scoreFinal);
+        if (count == 0) return "0.00";
+
+        // Écart-type des résidus locaux
+        double ecartType = Math.sqrt(sommeCarres / count);
+        return df.format(ecartType);
     }
 
-    private Point calculerMoyenneSpatiale(List<Point> points, int indexCentre, double rayon) {
-        double sumX = 0, sumY = 0;
-        int pointsTrouves = 0;
-        Point centre = points.get(indexCentre);
+    /**
+     * Régression linéaire sur une liste de points.
+     * Retourne [moyX, moyY, dx, dy] : un point de la droite + vecteur directeur normalisé.
+     */
+    private double[] regressionLocale(List<Point> pts) {
+        int n = pts.size();
+        double sumX = 0, sumY = 0, sumXX = 0, sumXY = 0, sumYY = 0;
 
-        // On regarde autour du point dans la liste
-        // On limite la recherche aux voisins proches (index) pour la performance
-        int scanRange = 20;
-        int start = Math.max(0, indexCentre - scanRange);
-        int end = Math.min(points.size() - 1, indexCentre + scanRange);
-
-        for (int i = start; i <= end; i++) {
-            Point voisin = points.get(i);
-            double distPoints = Math.sqrt(Math.pow(centre.getX() - voisin.getX(), 2) + Math.pow(centre.getY() - voisin.getY(), 2));
-
-            if (distPoints <= rayon) {
-                sumX += voisin.getX();
-                sumY += voisin.getY();
-                pointsTrouves++;
-            }
+        for (Point p : pts) {
+            sumX  += p.getX();
+            sumY  += p.getY();
+            sumXX += p.getX() * p.getX();
+            sumXY += p.getX() * p.getY();
+            sumYY += p.getY() * p.getY();
         }
 
-        if (pointsTrouves == 0) return null;
-        Point pt = new Point();
-        pt.setX(sumX/pointsTrouves);
-        pt.setY(sumY/pointsTrouves);
-        return pt;
+        double moyX = sumX / n;
+        double moyY = sumY / n;
+        double varX = sumXX / n - moyX * moyX;
+        double varY = sumYY / n - moyY * moyY;
+
+        double dx, dy;
+        if (varX >= varY) {
+            double a = (sumXY / n - moyX * moyY) / (varX < 1e-9 ? 1e-9 : varX);
+            double norm = Math.sqrt(1 + a * a);
+            dx = 1.0 / norm;
+            dy = a / norm;
+        } else {
+            double a = (sumXY / n - moyX * moyY) / (varY < 1e-9 ? 1e-9 : varY);
+            double norm = Math.sqrt(1 + a * a);
+            dy = 1.0 / norm;
+            dx = a / norm;
+        }
+
+        return new double[]{moyX, moyY, dx, dy};
+    }
+
+    /**
+     * Distance perpendiculaire d'un point P à la droite définie par [moyX, moyY, dx, dy].
+     * Formule : |(P - origine) × direction|
+     */
+    private double distancePerpendiculaire(Point p, double[] droite) {
+        double moyX = droite[0], moyY = droite[1];
+        double dx   = droite[2], dy   = droite[3];
+        // Produit vectoriel 2D = composante scalaire du vecteur perpendiculaire
+        return Math.abs((p.getX() - moyX) * dy - (p.getY() - moyY) * dx);
     }
 }

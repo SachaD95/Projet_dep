@@ -1,76 +1,74 @@
 package BackLigneDroite;
 
 import java.util.ArrayList;
-import java.util.Comparator;
+import java.util.Collections;
 import java.util.List;
 
 public class Vitesse {
 
     public static String analyserProfilVitesse(List<Point> points, int nbSegmentsVoulus) {
-        if (points == null || points.size() < 2) return "Tracé trop court";
+        if (points == null || points.size() < nbSegmentsVoulus * 2) return "~|Tracé trop court";
 
-        // 1. Calcul des vitesses locales ET des distances
-        List<VitessePoint> data = new ArrayList<>();
-        double distanceTotale = 0;
+        List<Double> distances = new ArrayList<>();
 
         for (int i = 0; i < points.size() - 1; i++) {
-            double d = Math.sqrt(Math.pow(points.get(i+1).getX() - points.get(i).getX(), 2) +
-                    Math.pow(points.get(i+1).getY() - points.get(i).getY(), 2));
-            if (d > 0) { // On ignore les points strictement identiques pour ne pas fausser
-                data.add(new VitessePoint(d));
-                distanceTotale += d;
-            }
+            double d = calculerDistance(points.get(i), points.get(i + 1));
+            if (d > 0.1) distances.add(d);
         }
 
-        if (distanceTotale == 0) return "Immobile";
+        if (distances.isEmpty()) return "-|Tracé immobile";
 
-        // 2. Calcul de la MÉDIANE SPATIALE (Pondérée)
-        // On trie par vitesse
-        data.sort(Comparator.comparingDouble(p -> p.vitesse));
+        // Médiane sur les distances inter-points
+        List<Double> triees = new ArrayList<>(distances);
+        Collections.sort(triees);
+        double vitesseMediane = triees.get(triees.size() / 2);
+        if (vitesseMediane < 0.5) vitesseMediane = 0.5;
 
-        double medianeSpatiale = 0;
-        double cumulDistance = 0;
-        double seuilCible = distanceTotale / 2.0;
-
-        for (VitessePoint vp : data) {
-            cumulDistance += vp.vitesse;
-            if (cumulDistance >= seuilCible) {
-                medianeSpatiale = vp.vitesse;
-                break;
-            }
-        }
-
-        // 3. Analyse par segment (temporel)
-        StringBuilder profil = new StringBuilder();
+        // Analyse par segment — normalisé par nombre d'INTERVALLES (pas de points)
+        StringBuilder profilVisuel = new StringBuilder();
         int pointsParSegment = points.size() / nbSegmentsVoulus;
+        int segmentsReguliers = 0;
 
         for (int s = 0; s < nbSegmentsVoulus; s++) {
             int debut = s * pointsParSegment;
             int fin = (s == nbSegmentsVoulus - 1) ? points.size() - 1 : (s + 1) * pointsParSegment;
 
+            int nbIntervalles = 0;
             double distSegment = 0;
-            int nbLiens = 0;
+
             for (int i = debut; i < fin; i++) {
-                distSegment += Math.sqrt(Math.pow(points.get(i+1).getX() - points.get(i).getX(), 2) +
-                        Math.pow(points.get(i+1).getY() - points.get(i).getY(), 2));
-                nbLiens++;
+                double d = calculerDistance(points.get(i), points.get(i + 1));
+                if (d > 0.1) {          // même filtre que pour la médiane
+                    distSegment += d;
+                    nbIntervalles++;
+                }
             }
 
-            double vMoyenneSegment = distSegment / nbLiens;
-            double ratio = vMoyenneSegment / medianeSpatiale;
+            // Segment vide ou sur-place → on le marque lent
+            if (nbIntervalles == 0) {
+                profilVisuel.append("- ");
+                continue;
+            }
 
-            // Seuils ajustés car la médiane spatiale est plus robuste
-            if (ratio < 0.90)      profil.append("- ");
-            else if (ratio > 1.1) profil.append("+ ");
-            else                   profil.append("~ ");
+            // Vitesse moyenne = distance totale / nombre d'intervalles valides
+            double vMoyenneSegment = distSegment / nbIntervalles;
+            double ratio = vMoyenneSegment / vitesseMediane;
+
+            if (ratio < 0.9) {
+                profilVisuel.append("- ");
+            } else if (ratio > 1.1) {
+                profilVisuel.append("+ ");
+            } else {
+                profilVisuel.append("~ ");
+                segmentsReguliers++;
+            }
         }
 
-        return profil.toString().trim();
+        int scoreRegularite = (int) Math.round(((double) segmentsReguliers / nbSegmentsVoulus) * 100);
+        return profilVisuel.toString().trim();
     }
 
-    // Petite classe interne pour stocker la vitesse
-    private static class VitessePoint {
-        double vitesse;
-        VitessePoint(double v) { this.vitesse = v; }
+    private static double calculerDistance(Point p1, Point p2) {
+        return Math.sqrt(Math.pow(p2.getX() - p1.getX(), 2) + Math.pow(p2.getY() - p1.getY(), 2));
     }
 }
