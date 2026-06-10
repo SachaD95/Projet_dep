@@ -1,0 +1,88 @@
+body {
+  margin: 0;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  background-color: #f4f7f6;
+  height: 100vh;
+  overflow: hidden; /* Empêche le scroll de la page entière */
+}
+
+.main-container {
+  display: flex;
+  width: 100%;
+  height: 100%;
+}
+
+.controls-panel {
+  width: 320px;
+  background: white;
+  padding: 20px;
+  box-shadow: 2px 0 10px rgba(0,0,0,0.1);
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  z-index: 10;
+}
+
+.control-group {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  background: #f8f9fa;
+  padding: 15px;
+  border-radius: 8px;
+  border: 1px solid #e9ecef;
+}
+
+.checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+}
+
+.canvas-panel {
+  flex: 1; /* Prend tout l'espace restant */
+  display: flex;
+  padding: 20px;
+  gap: 20px;
+  align-items: stretch;
+}
+
+.canvas-wrapper {
+  flex: 1; /* Chaque canvas prend la moitié de l'espace restant */
+  display: flex;
+  flex-direction: column;
+}
+
+.canvas-wrapper h3 {
+  margin-top: 0;
+  text-align: center;
+  color: #333;
+}
+
+canvas {
+  flex: 1; /* Le canvas s'étire en hauteur */
+  width: 100%;
+  background-color: rgba(231, 231, 231, 0.703);
+  border: 3px solid #ced4da;
+  border-radius: 8px;
+  cursor: crosshair;
+  box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+}
+
+#canvasModele {
+  cursor: default;
+  background-color: rgba(231, 231, 231, 0.703);
+}
+
+.resultats-box {
+  padding: 15px;
+  background-color: #e9ecef;
+  border-left: 5px solid #007bff;
+  border-radius: 4px;
+}
+
+.resultats-box p {
+  margin: 5px 0;
+}

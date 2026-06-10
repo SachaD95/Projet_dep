@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <title>Entraînement au dessin</title>
+  <link rel="stylesheet" href="styleTest.css">
+  <script src="scriptTestinterface.js" defer></script>
+</head>
+<body>
+  <div class="main-container">
+    
+    <aside class="controls-panel">
+      <h2>⚙️ Configuration</h2>
+      
+      <div class="control-group">
+        <label for="selectModele"><strong>Modèle</strong></label>
+        <select id="selectModele">
+          <option value="ligne">Ligne droite</option>
+          <option value="ellipse">Ellipse</option>
+        </select>
+      </div>
+
+      <div id="ligneOptions" class="control-group">
+        <label>Taille : <span id="valTaille">300</span> px</label>
+        <input type="range" id="inputTaille" min="50" max="600" value="300">
+
+        <label>Orientation : <span id="valAngle">0</span>°</label>
+        <input type="range" id="inputAngle" min="0" max="360" value="0">
+
+        <label class="checkbox-label">
+          <input type="checkbox" id="chkAleatoire"> 🎲 Mode Aléatoire
+        </label>
+      </div>
+
+      <div class="control-group">
+        <h3>📊 Critères de Scoring</h3>
+        <label class="checkbox-label"><input type="checkbox" id="chkScoreTaille" checked> La Taille du tracé</label>
+        <label class="checkbox-label"><input type="checkbox" id="chkScoreAngle" checked> L'angle de la droite</label>
+        <label class="checkbox-label"><input type="checkbox" id="chkScoreTremblement" checked> Les tremblements</label>
+        <label class="checkbox-label"><input type="checkbox" id="chkScoreVitesse" checked> La Vitesse</label>
+      </div>
+
+      <div id="resultats" class="resultats-box" style="display: none;"></div>
+    </aside>
+
+    <main class="canvas-panel">
+      <div class="canvas-wrapper">
+         <h3>Modèle à reproduire</h3>
+         <canvas id="canvasModele"></canvas>
+      </div>
+      <div class="canvas-wrapper">
+         <h3>Votre dessin</h3>
+         <canvas id="canvasDessin"></canvas>
+      </div>
+    </main>
+
+  </div>
+</body>
+</html>
